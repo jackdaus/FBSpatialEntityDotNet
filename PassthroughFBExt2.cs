@@ -127,17 +127,12 @@ namespace StereoKit.Framework
 		{
 			Log.Info("Begin CreateAnchor");
 
-			var anchorCreateInfo = new XrSpatialAnchorCreateInfoFB();
-			anchorCreateInfo.next = IntPtr.Zero;
-			anchorCreateInfo.space = Backend.OpenXR.Space;
-			//anchorCreateInfo.poseInSpace = Pose.Identity; // TODO replace with hand location
-			anchorCreateInfo.poseInSpace.orientation.w = 1;
-            anchorCreateInfo.time = Backend.OpenXR.Time;
+			XrPosef pose = new XrPosef();
+			pose.orientation.w = 1;
 
+            var anchorCreateInfo = new XrSpatialAnchorCreateInfoFB(Backend.OpenXR.Space, pose, Backend.OpenXR.Time);
 
-
-
-            XrResult result = xrCreateSpatialAnchorFB(
+			XrResult result = xrCreateSpatialAnchorFB(
 				Backend.OpenXR.Session,
 				anchorCreateInfo,
 				out XrAsyncRequestIdFB requestId);
@@ -158,7 +153,7 @@ namespace StereoKit.Framework
 
 			// SPATIAL_EXT New Enum Constants
 			XR_TYPE_SYSTEM_SPATIAL_ENTITY_PROPERTIES_FB = 1000113004,
-			XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_FB = 1000011303,
+			XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_FB = 1000113003,
 		}
 		enum XrPassthroughFlagsFB : UInt64
 		{
@@ -293,7 +288,7 @@ namespace StereoKit.Framework
 			public IntPtr next;
 			public Boolean supportsSpatialEntity;   // a boolean value that determines if spatial entities are supported by the system.
 
-			public XrSystemSpatialEntityPropertiesFB(Boolean supportsSpatialEntity) // TODO not sure if we need supportsSpatialEntity in the constructor...
+			public XrSystemSpatialEntityPropertiesFB(Boolean supportsSpatialEntity)
 			{
 				type = XrStructureType.XR_TYPE_SYSTEM_SPATIAL_ENTITY_PROPERTIES_FB;
 				next = IntPtr.Zero;
@@ -303,18 +298,17 @@ namespace StereoKit.Framework
 		[StructLayout(LayoutKind.Sequential)]
 		struct XrSpatialAnchorCreateInfoFB
 		{
-			private XrStructureType type;           // TODO should this be private or public?
+			private XrStructureType type;
 			public IntPtr next;
-			public UInt64 space;        // not sure if this is the correct type...
-			//public Pose poseInSpace;    // use Pose?
-			public XrPosef poseInSpace;    // use Pose?
-            public Int64 time;          // typedef int64_t XrTime;
+			public UInt64 space;
+			//public Pose poseInSpace;  // TODO try using Sk.Pose once struct fields are re-ordered
+			public XrPosef poseInSpace;
+            public Int64 time;			// typedef int64_t XrTime;
 
 			public XrSpatialAnchorCreateInfoFB(UInt64 space, XrPosef poseInSpace, Int64 time)
 			{
 				type = XrStructureType.XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_FB;
 				next = IntPtr.Zero;
-
 				this.space = space;
 				this.poseInSpace = poseInSpace;
 				this.time = time;
@@ -333,7 +327,6 @@ namespace StereoKit.Framework
 		delegate XrResult del_xrPassthroughLayerSetStyleFB(XrPassthroughLayerFB layer, [In] XrPassthroughStyleFB style);
 
 		// SPATIAL_EXT New Functions
-		//delegate XrResult del_xrCreateSpatialAnchorFB(ulong session, [In] XrSpatialAnchorCreateInfoFB info, out XrAsyncRequestIdFB requestId);
 		delegate XrResult del_xrCreateSpatialAnchorFB(ulong session, [In] XrSpatialAnchorCreateInfoFB info, out XrAsyncRequestIdFB requestId);
 
 
@@ -343,7 +336,6 @@ namespace StereoKit.Framework
 		del_xrPassthroughPauseFB xrPassthroughPauseFB;
 		del_xrCreatePassthroughLayerFB xrCreatePassthroughLayerFB;
 		del_xrDestroyPassthroughLayerFB xrDestroyPassthroughLayerFB;
-		// I don't think these three below are used in this example
 		del_xrPassthroughLayerPauseFB xrPassthroughLayerPauseFB;
 		del_xrPassthroughLayerResumeFB xrPassthroughLayerResumeFB;
 		del_xrPassthroughLayerSetStyleFB xrPassthroughLayerSetStyleFB;
@@ -369,7 +361,7 @@ namespace StereoKit.Framework
 				xrDestroyPassthroughFB != null &&
 				xrPassthroughStartFB != null &&
 				xrPassthroughPauseFB != null &&
-				xrCreatePassthroughLayerFB != null &&
+				xrCreatePassthroughLayerFB != null && 
 				xrDestroyPassthroughLayerFB != null &&
 				xrPassthroughLayerPauseFB != null &&
 				xrPassthroughLayerResumeFB != null &&
