@@ -1,6 +1,14 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using XrAsyncRequestIdFB = System.UInt64;
+
+// Represents a request to the spatial entity system. Several functions in this and other extensions will
+// populate an output variable of this type so that an application can use it when referring to a specific
+// request. -- OpenXR
+using XrAsyncRequestIdFB	= System.UInt64;
+
+using XrSpace				= System.UInt64;
+using XrTime				= System.Int64;
+using XrDuration			= System.Int64;
 
 namespace StereoKit.Framework
 {
@@ -17,11 +25,12 @@ namespace StereoKit.Framework
 		Color oldColor;
 		bool oldSky;
 
-		// SPATIAL_ENTITY
-		bool spatialExtAvailable;
+        // XR_FB_spatial_entity
+        bool spatialExtAvailable;
 
+        const Int64 XR_INFINITE_DURATION = 0x7fffffffffffffff;
 
-		public bool Available => extAvailable;
+        public bool Available => extAvailable;
 		public bool SpatialAvailable => spatialExtAvailable;
 		public bool Enabled { get => extAvailable && enabled; set => enabled = value; }
 		public bool EnabledPassthrough
@@ -122,8 +131,8 @@ namespace StereoKit.Framework
 			Renderer.EnableSky = oldSky;
 		}
 
-		// SPATIAL_EXT
-		public bool CreateAnchor()
+        // XR_FB_spatial_entity
+        public bool CreateAnchor()
 		{
 			Log.Info("Begin CreateAnchor");
 
@@ -151,10 +160,14 @@ namespace StereoKit.Framework
 			XR_TYPE_PASSTHROUGH_STYLE_FB = 1000118020,
 			XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB = 1000118003,
 
-			// SPATIAL_EXT New Enum Constants
-			XR_TYPE_SYSTEM_SPATIAL_ENTITY_PROPERTIES_FB = 1000113004,
+            // XR_FB_spatial_entity New Enum Constants
+            XR_TYPE_SYSTEM_SPATIAL_ENTITY_PROPERTIES_FB = 1000113004,
 			XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_FB = 1000113003,
-		}
+            XR_TYPE_SPACE_COMPONENT_STATUS_SET_INFO_FB = 1000113007,
+            XR_TYPE_SPACE_COMPONENT_STATUS_FB = 1000113001,
+            XR_TYPE_EVENT_DATA_SPATIAL_ANCHOR_CREATE_COMPLETE_FB = 1000113005,
+            XR_TYPE_EVENT_DATA_SPACE_SET_STATUS_COMPLETE_FB = 1000113006,
+        }
 		enum XrPassthroughFlagsFB : UInt64
 		{
 			None = 0,
@@ -180,16 +193,13 @@ namespace StereoKit.Framework
 			XR_ERROR_VALIDATION_FAILURE = -1,
 			// Provided by XR_FB_spatial_entity
 			XR_ERROR_SPACE_COMPONENT_NOT_SUPPORTED_FB = -1000113000,
-			// Provided by XR_FB_spatial_entity
 			XR_ERROR_SPACE_COMPONENT_NOT_ENABLED_FB = -1000113001,
-			// Provided by XR_FB_spatial_entity
 			XR_ERROR_SPACE_COMPONENT_STATUS_PENDING_FB = -1000113002,
-			// Provided by XR_FB_spatial_entity
 			XR_ERROR_SPACE_COMPONENT_STATUS_ALREADY_SET_FB = -1000113003,
 		}
 
-		// SPATIAL_EXT New Enums
-		enum XrSpaceComponentTypeFB : UInt32
+        // XR_FB_spatial_entity New Enums
+        enum XrSpaceComponentTypeFB : UInt32
 		{
 			XR_SPACE_COMPONENT_TYPE_LOCATABLE_FB = 0,
 			XR_SPACE_COMPONENT_TYPE_STORABLE_FB = 1,
@@ -280,13 +290,33 @@ namespace StereoKit.Framework
 			}
 		}
 
-		// SPATIAL_EXT New Structures
-		[StructLayout(LayoutKind.Sequential)]
+
+
+        // XR_EXT_uuid
+        [StructLayout(LayoutKind.Sequential)]
+        struct XrUuidEXT
+        {
+			// TODO not sure if this is correct
+            public byte[] data;
+
+			public XrUuidEXT()
+			{
+				data = new byte[16];
+			}
+        }
+
+
+        // XR_FB_spatial_entity New Structures
+        [StructLayout(LayoutKind.Sequential)]
 		struct XrSystemSpatialEntityPropertiesFB
 		{
-			private XrStructureType type;           // TODO should this be private or public?
+			private XrStructureType type;
 			public IntPtr next;
-			public Boolean supportsSpatialEntity;   // a boolean value that determines if spatial entities are supported by the system.
+
+            /// <summary>
+            /// a boolean value that determines if spatial entities are supported by the system.
+            /// </summary>
+            public Boolean supportsSpatialEntity;
 
 			public XrSystemSpatialEntityPropertiesFB(Boolean supportsSpatialEntity)
 			{
@@ -295,28 +325,152 @@ namespace StereoKit.Framework
 				this.supportsSpatialEntity = supportsSpatialEntity;
 			}
 		}
-		[StructLayout(LayoutKind.Sequential)]
+
+        /// <summary>
+        /// Parameters to create a new spatial anchor
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
 		struct XrSpatialAnchorCreateInfoFB
 		{
 			private XrStructureType type;
 			public IntPtr next;
-			public UInt64 space;
-			//public Pose poseInSpace;  // TODO try using Sk.Pose once struct fields are re-ordered
+			public XrSpace space;
 			public XrPosef poseInSpace;
-            public Int64 time;			// typedef int64_t XrTime;
+            public XrTime time;
 
-			public XrSpatialAnchorCreateInfoFB(UInt64 space, XrPosef poseInSpace, Int64 time)
+			public XrSpatialAnchorCreateInfoFB(XrSpace space, XrPosef poseInSpace, XrTime time)
 			{
 				type = XrStructureType.XR_TYPE_SPATIAL_ANCHOR_CREATE_INFO_FB;
 				next = IntPtr.Zero;
 				this.space = space;
 				this.poseInSpace = poseInSpace;
-				this.time = time;
+				this.time = XR_INFINITE_DURATION;
 			}
 		}
 
+        /// <summary>
+        /// Enables or disables the specified component for the specified spatial entity
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        struct XrSpaceComponentStatusSetInfoFB
+        {
+            private XrStructureType type;
 
-		delegate XrResult del_xrCreatePassthroughFB(ulong session, [In] XrPassthroughCreateInfoFB createInfo, out XrPassthroughFB outPassthrough);
+            public IntPtr next;
+
+            /// <summary>
+            /// the component whose status is to be set
+            /// </summary>
+            public XrSpaceComponentTypeFB componentType;
+
+            public Boolean enabled;
+
+            /// <summary>
+            /// the number of nanoseconds before the operation should be cancelled. A value of XR_INFINITE_DURATION 
+			/// indicates to never time out.
+            /// </summary>
+            public XrDuration timeout;
+
+			public XrSpaceComponentStatusSetInfoFB(XrSpaceComponentTypeFB componentType, Boolean enabled)
+			{
+                type = XrStructureType.XR_TYPE_SPACE_COMPONENT_STATUS_SET_INFO_FB;
+				next = IntPtr.Zero;
+				this.componentType = componentType;
+				this.enabled = enabled;
+				this.timeout = XR_INFINITE_DURATION;
+            }
+        }
+
+        /// <summary>
+        /// Holds information on the current state of a component.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        struct XrSpaceComponentStatusFB
+        {
+            XrStructureType type;
+            public IntPtr next;
+
+            /// <summary>
+            /// a boolean value that determines if a component is currently enabled or disabled.
+            /// </summary>
+            public Boolean enabled;
+
+            /// <summary>
+            /// a boolean value that determines if the component’s enabled state is about to change.
+            /// </summary>
+            public Boolean changePending;
+
+			public XrSpaceComponentStatusFB()
+			{
+				type = XrStructureType.XR_TYPE_SPACE_COMPONENT_STATUS_FB;
+                next = IntPtr.Zero;
+				enabled = false;
+				changePending = false;
+            }
+        }
+
+        /// <summary>
+        /// It describes the result of a request to create a new spatial anchor. Once this event is posted,
+		/// it is the application's responsibility to take ownership of the XrSpace. The XrSession passed 
+		/// into xrCreateSpatialAnchorFB is the parent handle of the newly created XrSpace.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        struct XrEventDataSpatialAnchorCreateCompleteFB
+        {
+            private XrStructureType type;
+            public IntPtr next;
+            public XrAsyncRequestIdFB requestId;
+			public XrResult result;
+            public XrSpace space;
+            public XrUuidEXT uuid;
+
+			public XrEventDataSpatialAnchorCreateCompleteFB()
+			{
+				type = XrStructureType.XR_TYPE_EVENT_DATA_SPATIAL_ANCHOR_CREATE_COMPLETE_FB;
+                next = IntPtr.Zero;
+				result = 0;
+				requestId = 0;
+				space = 0;
+				uuid = new XrUuidEXT();
+            }
+        }
+
+        /// <summary>
+        /// Describes the result of a request to enable or disable a component of a spatial entity.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        struct XrEventDataSpaceSetStatusCompleteFB
+        {
+            private XrStructureType type;
+            public IntPtr next;
+            public XrAsyncRequestIdFB requestId;
+            public XrResult result;
+            public XrSpace space;
+            public XrUuidEXT uuid;
+            public XrSpaceComponentTypeFB componentType;
+
+            /// <summary>
+            /// a boolean value indicating whether the component is now enabled or disabled.
+            /// </summary>
+            public Boolean enabled;
+
+			public XrEventDataSpaceSetStatusCompleteFB()
+			{
+				type = XrStructureType.XR_TYPE_EVENT_DATA_SPACE_SET_STATUS_COMPLETE_FB;
+                next = IntPtr.Zero;
+				requestId = 0;
+				result = 0;
+				space = 0;
+				uuid = new XrUuidEXT();
+				componentType = 0;
+				enabled = false;
+            }
+        }
+
+
+
+
+        delegate XrResult del_xrCreatePassthroughFB(ulong session, [In] XrPassthroughCreateInfoFB createInfo, out XrPassthroughFB outPassthrough);
 		delegate XrResult del_xrDestroyPassthroughFB(XrPassthroughFB passthrough);
 		delegate XrResult del_xrPassthroughStartFB(XrPassthroughFB passthrough);
 		delegate XrResult del_xrPassthroughPauseFB(XrPassthroughFB passthrough);
@@ -326,8 +480,71 @@ namespace StereoKit.Framework
 		delegate XrResult del_xrPassthroughLayerResumeFB(XrPassthroughLayerFB layer);
 		delegate XrResult del_xrPassthroughLayerSetStyleFB(XrPassthroughLayerFB layer, [In] XrPassthroughStyleFB style);
 
-		// SPATIAL_EXT New Functions
-		delegate XrResult del_xrCreateSpatialAnchorFB(ulong session, [In] XrSpatialAnchorCreateInfoFB info, out XrAsyncRequestIdFB requestId);
+
+        ////////// XR_FB_spatial_entity New Functions
+		///
+
+        /// <summary>
+        /// Creates a Spatial Anchor using the specified tracking origin and pose relative to the specified tracking origin.
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="info"></param>
+        /// <param name="requestId"></param>
+        /// <returns></returns>
+        delegate XrResult del_xrCreateSpatialAnchorFB(
+			ulong							 session, 
+			[In] XrSpatialAnchorCreateInfoFB info, 
+			out XrAsyncRequestIdFB			 requestId);
+
+        /// <summary>
+        /// Gets the UUID for a spatial entity.
+        /// </summary>
+        /// <param name="space">The XrSpace handle of a spatial entity.</param>
+        /// <param name="uuid">An output parameter pointing to the entity’s UUID.</param>
+        /// <returns></returns>
+        delegate XrResult del_xrGetSpaceUuidFB(
+			XrSpace		  space, 
+			out XrUuidEXT uuid);
+
+        /// <summary>
+        /// Lists any component types that an entity supports.
+        /// </summary>
+        /// <param name="space">the XrSpace handle to the spatial entity.</param>
+        /// <param name="componentTypeCapacityInput">the capacity of the componentTypes array, or 0 to indicate a request to retrieve the required capacity.</param>
+        /// <param name="componentTypeCountOutput">a pointer to the count of componentTypes written, or a pointer to the required capacity in the case that componentTypeCapacityInput is insufficient.</param>
+        /// <param name="componentTypes">a pointer to an array of XrSpaceComponentTypeFB values, but can be NULL if componentTypeCapacityInput is 0.</param>
+        /// <returns></returns>
+        delegate XrResult del_xrEnumerateSpaceSupportedComponentsFB(
+			XrSpace					 space, 
+			UInt32					 componentTypeCapacityInput,
+			out UInt32				 componentTypeCountOutput,
+			XrSpaceComponentTypeFB[] componentTypes);           // TODO not sure if this is correct...
+
+
+        /// <summary>
+        /// Enables or disables the specified component for the specified entity.
+        /// </summary>
+        /// <param name="space">the XrSpace handle to the spatial entity.</param>
+        /// <param name="info">a pointer to an XrSpaceComponentStatusSetInfoFB structure containing information about the component to be enabled or disabled.</param>
+        /// <param name="requestId">the output parameter that points to the ID of this asynchronous request.</param>
+        /// <returns></returns>
+        delegate XrResult del_xrSetSpaceComponentStatusFB(
+			XrSpace space,
+            [In] XrSpaceComponentStatusSetInfoFB info,
+			out XrAsyncRequestIdFB				 requestId);
+
+        /// <summary>
+        /// Gets the current status of the specified component for the specified entity.
+        /// </summary>
+        /// <param name="space">the XrSpace handle of a spatial entity.</param>
+        /// <param name="componentType">the component type to query.</param>
+        /// <param name="status">an output parameter pointing to the structure containing the status of the component that was queried.</param>
+        /// <returns></returns>
+        delegate XrResult del_xrGetSpaceComponentStatusFB(
+			XrSpace space,
+			XrSpaceComponentTypeFB		 componentType,
+			out XrSpaceComponentStatusFB status);
+
 
 
         del_xrCreatePassthroughFB xrCreatePassthroughFB;
@@ -340,11 +557,15 @@ namespace StereoKit.Framework
 		del_xrPassthroughLayerResumeFB xrPassthroughLayerResumeFB;
 		del_xrPassthroughLayerSetStyleFB xrPassthroughLayerSetStyleFB;
 
-		// SPATIAL_EXT New Functions
-		del_xrCreateSpatialAnchorFB xrCreateSpatialAnchorFB;
+        // XR_FB_spatial_entity New Functions
+        del_xrCreateSpatialAnchorFB xrCreateSpatialAnchorFB;
+        del_xrGetSpaceUuidFB xrGetSpaceUuidFB;
+        del_xrEnumerateSpaceSupportedComponentsFB xrEnumerateSpaceSupportedComponentsFB;
+        del_xrSetSpaceComponentStatusFB xrSetSpaceComponentStatusFB;
+        del_xrGetSpaceComponentStatusFB xrGetSpaceComponentStatusFB;
 
 
-		bool LoadBindings()
+        bool LoadBindings()
 		{
 			xrCreatePassthroughFB = Backend.OpenXR.GetFunction<del_xrCreatePassthroughFB>("xrCreatePassthroughFB");
 			xrDestroyPassthroughFB = Backend.OpenXR.GetFunction<del_xrDestroyPassthroughFB>("xrDestroyPassthroughFB");
@@ -368,38 +589,30 @@ namespace StereoKit.Framework
 				xrPassthroughLayerSetStyleFB != null;
 		}
 
-		// SPATIAL_ENTITY
-		bool LoadSpatialBindings()
+        // XR_FB_spatial_entity
+        bool LoadSpatialBindings()
 		{
 			//XR_FB_spatial_entity
-			xrCreateSpatialAnchorFB = Backend.OpenXR.GetFunction<del_xrCreateSpatialAnchorFB>("xrCreateSpatialAnchorFB");
+			xrCreateSpatialAnchorFB				  = Backend.OpenXR.GetFunction<del_xrCreateSpatialAnchorFB>(			  "xrCreateSpatialAnchorFB");
+            xrGetSpaceUuidFB					  = Backend.OpenXR.GetFunction<del_xrGetSpaceUuidFB>(					  "xrGetSpaceUuidFB");
+            xrEnumerateSpaceSupportedComponentsFB = Backend.OpenXR.GetFunction<del_xrEnumerateSpaceSupportedComponentsFB>("xrEnumerateSpaceSupportedComponentsFB");
+            xrSetSpaceComponentStatusFB			  = Backend.OpenXR.GetFunction<del_xrSetSpaceComponentStatusFB>(		  "xrSetSpaceComponentStatusFB");
+            xrGetSpaceComponentStatusFB			  = Backend.OpenXR.GetFunction<del_xrGetSpaceComponentStatusFB>(		  "xrGetSpaceComponentStatusFB");
 
-			return xrCreateSpatialAnchorFB != null;
-		}
-		#endregion
+            return xrCreateSpatialAnchorFB				 != null
+				&& xrGetSpaceUuidFB						 != null
+				&& xrEnumerateSpaceSupportedComponentsFB != null
+				&& xrSetSpaceComponentStatusFB			 != null
+				&& xrGetSpaceComponentStatusFB			 != null;
+        }
 
 		[StructLayout(LayoutKind.Sequential)]
 		struct XrPosef
 		{
-            public XrQuaternionf orientation;
-            public XrVector3f position;
+            public Quat orientation;
+            public Vec3 position;
         }
+		#endregion
 
-        [StructLayout(LayoutKind.Sequential)]
-        struct XrQuaternionf
-		{
-            public float x;
-            public float y;
-            public float z;
-            public float w;
-		}
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct XrVector3f
-        {
-            public float x;
-            public float y;
-            public float z;
-        }
     }
 }
