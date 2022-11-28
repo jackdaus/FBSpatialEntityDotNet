@@ -1,4 +1,4 @@
-using ARInventory;
+using SpatialEntity;
 using StereoKit;
 using StereoKit.Framework;
 using System;
@@ -13,6 +13,8 @@ namespace PassthroughDotNet
 			PassthroughFBExt   passthroughStepper   = SK.AddStepper<PassthroughFBExt>();
 			SpatialEntityFBExt spatialEntityStepper = SK.AddStepper<SpatialEntityFBExt>();
 
+			spatialEntityStepper.Enabled = true;
+
 			// Initialize StereoKit
 			SKSettings settings = new SKSettings
 			{
@@ -21,10 +23,6 @@ namespace PassthroughDotNet
 			};
 			if (!SK.Initialize(settings))
 				Environment.Exit(1);
-
-			// Must be called AFTER SK.Initialize
-			SK.AddStepper<Logger>();
-
 
 			// Create assets used by the app
 			Pose cubePose = new Pose(0, 0, -0.5f, Quat.Identity);
@@ -75,6 +73,12 @@ namespace PassthroughDotNet
 						Pose fingerPose = Input.Hand(Handed.Right)[FingerId.Index, JointId.Tip].Pose;
 						spatialEntityStepper.CreateAnchor(fingerPose);
 					}
+
+					if (UI.Button("Load Anchors"))
+						spatialEntityStepper.LoadAllAnchors();
+
+					if (UI.Button("Erase Anchors"))
+						spatialEntityStepper.EraseAllAnchors();
 				}
 				else
 				{
@@ -83,11 +87,10 @@ namespace PassthroughDotNet
 				UI.WindowEnd();
 
 				// Spatial anchor visual
-				spatialEntityStepper.Anchors.ForEach(anchor =>
+				foreach(var anchor in spatialEntityStepper.Anchors.Values)
 				{
-					Mesh.Cube.Draw(Material.Default, anchor.pose.ToMatrix(0.2f), new Color(1, 0.5f, 0));
-				});
-
+					Mesh.Cube.Draw(Material.Default, anchor.Pose.ToMatrix(0.1f), new Color(1, 0.5f, 0));
+				}
 			})) ;
 			SK.Shutdown();
 		}

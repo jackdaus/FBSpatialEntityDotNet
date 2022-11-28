@@ -1,10 +1,12 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 
-using XrSpace = System.UInt64;
-using XrTime = System.Int64;
+using XrTime             = System.Int64;
+using XrSpace            = System.UInt64;
+using XrSession          = System.UInt64;
 using XrAsyncRequestIdFB = System.UInt64;
 
-namespace StereoKit.Framework
+namespace SpatialEntity
 {
 	#region XR_FB_spatial_entity
 
@@ -28,7 +30,7 @@ namespace StereoKit.Framework
 	/// <returns></returns>
 	delegate XrResult del_xrGetSpaceUuidFB(
 		XrSpace space,
-		out XrUuidEXT uuid);
+		out Guid uuid);
 
 	/// <summary>
 	/// Lists any component types that an entity supports.
@@ -41,8 +43,8 @@ namespace StereoKit.Framework
 	delegate XrResult del_xrEnumerateSpaceSupportedComponentsFB(
 		XrSpace space,
 		uint componentTypeCapacityInput,
-		out uint componentTypeCountOutput,
-		XrSpaceComponentTypeFB[] componentTypes);           // TODO not sure if this is correct...
+		out UInt32 componentTypeCountOutput,
+		XrSpaceComponentTypeFB[] componentTypes);
 
 
 	/// <summary>
@@ -72,8 +74,65 @@ namespace StereoKit.Framework
 	#endregion
 
 
+	#region XR_FB_spatial_entity_storage
+
+	/// <summary>
+	/// Persists the spatial entity at the specified location with the specified mode. 
+	/// </summary>
+	/// <param name="session">a handle to an XrSession.</param>
+	/// <param name="info">contains the parameters for the save operation.</param>
+	/// <param name="requestId">an output parameter, and the variable it points to will be populated with the ID of this asynchronous request.</param>
+	/// <returns></returns>
+	delegate XrResult del_xrSaveSpaceFB(
+		XrSession session,
+		[In] XrSpaceSaveInfoFB info,
+		out XrAsyncRequestIdFB requestId);
+
+	/// <summary>
+	/// Erases a spatial entity from storage at the specified location. 
+	/// </summary>
+	/// <param name="session">a handle to an XrSession.</param>
+	/// <param name="info">contains the parameters for the erase operation.</param>
+	/// <param name="requestId">an output parameter, and the variable it points to will be populated with the ID of this asynchronous request.</param>
+	/// <returns></returns>
+	delegate XrResult del_xrEraseSpaceFB(
+		XrSession session,
+		[In] XrSpaceEraseInfoFB info,
+		out XrAsyncRequestIdFB requestId);
+
+	#endregion
+
+
+	#region XR_FB_spatial_entity_query
+
+	/// <summary>
+	/// A function for the application to find and retrieve spatial entities from storage.
+	/// </summary>
+	/// <param name="session"></param>
+	/// <param name="info"></param>
+	/// <param name="requestId"></param>
+	/// <returns></returns>
+	delegate XrResult del_xrQuerySpacesFB(
+		XrSession session,
+		[In] XrSpaceQueryInfoFB info,
+		out XrAsyncRequestIdFB requestId);
+
+	/// <summary>
+	/// A function afor the application to retrieve all available results for a specified query. 
+	/// </summary>
+	/// <param name="session"></param>
+	/// <param name="requestId"></param>
+	/// <param name="results"></param>
+	/// <returns></returns>
+	delegate XrResult del_xrRetrieveSpaceQueryResultsFB(
+		XrSession session,
+		XrAsyncRequestIdFB requestId,
+		out XrSpaceQueryResultsFB results);
+
+	#endregion
+
 	#region Other XrFunctions
-	
+
 	delegate XrResult del_xrLocateSpace(
 		XrSpace space,
 		XrSpace baseSpace,
