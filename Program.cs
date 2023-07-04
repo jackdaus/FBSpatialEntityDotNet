@@ -41,7 +41,7 @@ namespace PassthroughDotNet
 			// Core application loop
 			while (SK.Step(() =>
 			{
-				if (SK.System.displayType == Display.Opaque)
+				if (SK.System.displayType == Display.Opaque && !passthroughStepper.EnabledPassthrough)
 					Default.MeshCube.Draw(floorMaterial, floorTransform);
 
 				UI.Handle("Cube", ref cubePose, cube.Bounds);
